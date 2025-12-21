@@ -60,6 +60,19 @@ export async function req<T = any>(
   return res.json() as Promise<T>;
 }
 
+/* ============================================================
+   AI
+============================================================ */
+export const Ai = {
+  chat: (
+    messages: { role: "system" | "user" | "assistant"; content: string }[]
+  ) =>
+    req<{ reply: string }>(`/ai/chat`, {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+    }),
+};
+
 /** ----------------------------- */
 /** JWT decode (payload)          */
 /** ----------------------------- */

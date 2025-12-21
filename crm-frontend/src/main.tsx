@@ -6,6 +6,7 @@ import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { NotificationsProvider } from "./context/NotificationsContext";
 
 const theme = createTheme({
   palette: {
@@ -22,7 +23,9 @@ createRoot(document.getElementById("root")!).render(
       <CssBaseline />
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <NotificationsProvider>
+            <App />
+          </NotificationsProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

@@ -23,6 +23,7 @@ import LeadCreateDialog from "../components/leads/LeadCreateDialog";
 import ConvertLeadDialog from "../components/leads/ConvertLeadDialog";
 import MarkLostDialog from "../components/leads/MarkLostDialog";
 import ChangeStatusDialog from "../components/leads/ChangeStatusDialog";
+import { useSearchParams } from "react-router-dom";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "won" | "lost" | string;
 
@@ -60,6 +61,8 @@ function statusChip(status: string) {
 }
 
 export default function LeadsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [search, setSearch] = useState("");
   const [list, setList] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +223,45 @@ export default function LeadsPage() {
       setActionLoading(false);
     }
   };
+
+  /* ✅ Notification click → /leads?id=..&action=.. geldiğinde otomatik aç */
+  useEffect(() => {
+    const idStr = searchParams.get("id");
+    if (!idStr) return;
+
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) return;
+
+    const action = (searchParams.get("action") || "").toLowerCase(); // status | lost | convert | ""
+
+    (async () => {
+      try {
+        const lead: any = await Leads.getById(id);
+        if (!lead?.id) return;
+
+        setSelected(lead);
+
+        // action’a göre dialog aç
+        if (action === "convert") setOpenConvert(true);
+        else if (action === "lost") setOpenLost(true);
+        else if (action === "status") setOpenStatus(true);
+        else {
+          // action yoksa default: status dialog açalım (istersen none yaparız)
+          setOpenStatus(true);
+        }
+      } catch (e: any) {
+        setToast({
+          open: true,
+          msg: e?.message || "Lead load failed",
+          severity: "error",
+        });
+      } finally {
+        // URL’yi temizle (geri/ileri davranışı daha stabil)
+        setSearchParams({}, { replace: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Stack spacing={3}>
@@ -402,7 +444,6 @@ export default function LeadsPage() {
           </Table>
         </TableContainer>
 
-        {/* ✅ UI BOZMADAN: Pagination bar (Activities gibi) */}
         <Box sx={{ p: 2, display: "flex", justifyContent: "center" }}>
           <Pagination
             page={meta.page || 1}
@@ -414,7 +455,6 @@ export default function LeadsPage() {
         </Box>
       </Paper>
 
-      {/* ✅ Create dialog */}
       <LeadCreateDialog
         open={openCreate}
         onClose={() => setOpenCreate(false)}
@@ -427,7 +467,6 @@ export default function LeadsPage() {
         }}
       />
 
-      {/* ✅ Convert dialog */}
       <ConvertLeadDialog
         open={openConvert}
         leadName={selected?.name}
@@ -436,7 +475,6 @@ export default function LeadsPage() {
         onConfirm={handleConvert}
       />
 
-      {/* ✅ Lost dialog */}
       <MarkLostDialog
         open={openLost}
         leadName={selected?.name}
@@ -445,7 +483,6 @@ export default function LeadsPage() {
         onConfirm={handleLost}
       />
 
-      {/* ✅ Change Status dialog */}
       <ChangeStatusDialog
         open={openStatus}
         leadName={selected?.name}

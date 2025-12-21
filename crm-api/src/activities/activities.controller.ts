@@ -18,6 +18,9 @@ import { ActivitiesService } from './activities.service';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { ActivityType } from './entities/activity.entity';
+import { Role } from 'src/users/entities/user.entity';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 
 @ApiTags('Activities')
 @ApiBearerAuth()

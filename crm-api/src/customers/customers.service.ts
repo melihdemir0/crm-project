@@ -90,6 +90,9 @@ export class CustomersService {
     if (!entity) throw new NotFoundException('Customer not found');
     return entity;
   }
+  async countAll(): Promise<number> {
+    return this.repo.count();
+  }
 
   // ✅ ownership check
   async update(

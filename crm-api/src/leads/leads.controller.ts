@@ -79,8 +79,6 @@ export class LeadsController {
     return this.service.markLost(id, dto, req.user);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles('admin')
   @Patch(':id/status')
   changeStatus(
     @Param('id', ParseIntPipe) id: number,

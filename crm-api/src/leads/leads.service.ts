@@ -16,6 +16,8 @@ import {
 } from 'src/activities/entities/activity.entity';
 import { ChangeLeadStatusDto } from './dto/change-lead-status.dto';
 import { ListQueryDto } from 'src/common/dto/list-query.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { RealtimeEventType } from 'src/notifications/realtime.types';
 
 type ListParams = {
   q?: string;
@@ -38,7 +40,7 @@ type Paginated<T> = {
 };
 
 // req.user tipin payload, en azından bunlar lazım
-type AuthedUser = { id?: number; sub?: number; role?: string };
+type AuthedUser = { id?: number; sub?: number; role?: string; email?: string };
 
 @Injectable()
 export class LeadsService {
@@ -51,6 +53,8 @@ export class LeadsService {
 
     @InjectRepository(Activity)
     private readonly activitiesRepo: Repository<Activity>,
+
+    private readonly notifications: NotificationsService,
   ) {}
 
   private userId(user: AuthedUser): number {
@@ -69,11 +73,34 @@ export class LeadsService {
     if (lead.ownerId !== uid) throw new ForbiddenException('Not your lead');
   }
 
-  // ✅ ownerId set
+  async countAll(): Promise<number> {
+    return this.repo.count();
+  }
+
+  //  ownerId set
   async create(dto: CreateLeadDto, user: AuthedUser): Promise<Lead> {
     const ownerId = this.userId(user);
     const entity = this.repo.create({ ...dto, ownerId });
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+
+    //  admin’e anlık bildirim
+    try {
+      this.notifications.notifyAdmins({
+        type: RealtimeEventType.LEAD_CREATED,
+        actor: {
+          id: ownerId,
+          email: user?.email ?? 'unknown',
+          role: String(user?.role ?? '').toLowerCase(),
+        },
+        entity: 'lead',
+        entityId: saved.id,
+        message: `Lead created: ${saved.name}`,
+        meta: { leadName: saved.name },
+        at: new Date().toISOString(),
+      });
+    } catch {}
+
+    return saved;
   }
 
   async list(query: ListQueryDto): Promise<Paginated<Lead>> {
@@ -213,6 +240,26 @@ export class LeadsService {
         customerId: savedCustomer.id,
       }),
     );
+    try {
+      this.notifications.notifyAdmins({
+        type: RealtimeEventType.LEAD_CONVERTED,
+        actor: {
+          id: this.userId(user),
+          email: user?.email ?? 'unknown',
+          role: String(user?.role ?? '').toLowerCase(),
+        },
+        entity: 'lead',
+        entityId: lead.id,
+        message: `Lead converted: ${lead.name} → Customer #${savedCustomer.id}`,
+        meta: {
+          leadId: lead.id,
+          leadName: lead.name,
+          customerId: savedCustomer.id,
+          customerName: savedCustomer.name,
+        },
+        at: new Date().toISOString(),
+      });
+    } catch {}
 
     return { customer: savedCustomer, leadId: lead.id, status: lead.status };
   }
@@ -252,6 +299,25 @@ export class LeadsService {
         customerId: null,
       }),
     );
+    try {
+      this.notifications.notifyAdmins({
+        type: RealtimeEventType.LEAD_LOST,
+        actor: {
+          id: this.userId(user),
+          email: user?.email ?? 'unknown',
+          role: String(user?.role ?? '').toLowerCase(),
+        },
+        entity: 'lead',
+        entityId: lead.id,
+        message: `Lead marked LOST: ${lead.name}`,
+        meta: {
+          leadId: lead.id,
+          leadName: lead.name,
+          reason: dto?.reason?.trim() || null,
+        },
+        at: new Date().toISOString(),
+      });
+    } catch {}
 
     return { leadId: lead.id, status: lead.status };
   }
@@ -293,6 +359,27 @@ export class LeadsService {
     });
 
     await this.activitiesRepo.save(act);
+    try {
+      this.notifications.notifyAdmins({
+        type: RealtimeEventType.LEAD_STATUS_CHANGED,
+        actor: {
+          id: this.userId(user),
+          email: user?.email ?? 'unknown',
+          role: String(user?.role ?? '').toLowerCase(),
+        },
+        entity: 'lead',
+        entityId: saved.id,
+        message: `Lead "${lead.name}" status: ${prev} → ${saved.status}`,
+        meta: {
+          leadId: saved.id,
+          leadName: saved.name,
+          from: prev,
+          to: saved.status,
+          note: dto.note?.trim() || null,
+        },
+        at: new Date().toISOString(),
+      });
+    } catch {}
 
     return saved;
   }

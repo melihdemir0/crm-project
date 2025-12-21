@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Auth, decodeJwt } from "../lib/api";
+import { connectRealtime, disconnectRealtime } from "../lib/realtime";
 
 /* --------------------------
     Storage helpers
@@ -82,20 +83,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setEmail(nextEmail);
     setRole(nextRole);
     setIsAuthed(true);
+
+    // admin ise realtime bağla
+    if (nextRole === "admin") connectRealtime();
   }
 
   /* LOGOUT */
   function logout() {
-    // backend logout varsa çağır; fail etse bile local temizle
     try {
       Auth.logout();
     } finally {
+      disconnectRealtime();
       clearEverywhere();
       setEmail(null);
       setRole(null);
       setIsAuthed(false);
     }
   }
+
+  /* ✅ Sayfa refresh / role değişimi → socket aç-kapa */
+  useEffect(() => {
+    if (isAuthed && role === "admin") {
+      connectRealtime();
+    } else {
+      disconnectRealtime();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthed, role]);
 
   /* storage event → başka tabda login/logout olursa */
   useEffect(() => {

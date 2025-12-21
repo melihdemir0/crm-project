@@ -18,6 +18,8 @@ import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 import { Lead } from '../leads/entities/lead.entity';
 import { Customer } from '../customers/entities/customer.entity';
+import { Role, User } from 'src/users/entities/user.entity';
+import { UsersService } from 'src/users/users.service';
 
 type ListParams = {
   q?: string;
@@ -78,6 +80,7 @@ export class ActivitiesService {
     @InjectRepository(Lead) private readonly leads: Repository<Lead>,
     @InjectRepository(Customer)
     private readonly customers: Repository<Customer>,
+    private readonly usersService: UsersService,
   ) {}
 
   private userId(user: AuthedUser): number {
@@ -108,6 +111,13 @@ export class ActivitiesService {
         'Exactly one of leadId or customerId must be provided',
       );
     }
+  }
+  async getLastAny() {
+    return this.repo
+      .createQueryBuilder('a')
+      .where('a.deletedAt IS NULL')
+      .orderBy('a.id', 'DESC')
+      .getOne();
   }
 
   private toSafeUser(u: any): UserSafe | null {

@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: crm_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_PASSWORD: '123456'
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -32,10 +32,12 @@ services:
       DB_HOST: crm-db
       DB_PORT: 5432
       DB_USER: postgres
-      DB_PASS: 123456
+      DB_PASS: '123456'
       DB_NAME: crm_db
       NODE_ENV: development
       PORT: 3000
+
+      N8N_API_KEY: 143f45ac6acd53b94cdc70fa4858e3b0e39017875b61005a85cccd4838d6960f
     ports:
       - '3000:3000'
     volumes:
@@ -57,6 +59,37 @@ services:
     volumes:
       - pgadmin-data:/var/lib/pgadmin
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: crm_n8n
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: 'false'
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      NODE_ENV: development
+      N8N_ALLOW_ENVIRONMENT_VARIABLES: true
+
+      CRM_API_BASE: http://api:3000
+
+      N8N_API_KEY: 143f45ac6acd53b94cdc70fa4858e3b0e39017875b61005a85cccd4838d6960f
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: crm_ollama
+    restart: unless-stopped
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama_data:/root/.ollama
+
 volumes:
   pgdata:
   pgadmin-data:
+  n8n_data:
+  ollama_data:
